@@ -1,0 +1,57 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Optional, Protocol
+
+from ddz.cards import sort_cards
+from ddz.generator import generate_legal_plays
+from ddz.state import GameState, Play
+from ddz.strategy import recommend_play
+
+
+@dataclass(frozen=True)
+class TurnView:
+    # TurnView is the minimal information an agent needs to decide a move.
+    player: int
+    landlord: int
+    hand: list[str]
+    hand_counts: list[int]
+    last_play: Optional[Play]
+
+
+class Agent(Protocol):
+    def choose_play(self, view: TurnView) -> Optional[list[str]]:
+        ...
+
+
+class HeuristicAgent:
+    def choose_play(self, view: TurnView) -> Optional[list[str]]:
+        # Reuse the current rule-based recommender as a drop-in player.
+        role = "landlord" if view.player == view.landlord else "farmer"
+        teammate_cards_left = None
+        if role == "farmer":
+            teammate = next(index for index in range(3) if index not in {view.player, view.landlord})
+            teammate_cards_left = view.hand_counts[teammate]
+
+        state = GameState(
+            my_hand=sort_cards(view.hand),
+            last_play=view.last_play,
+            my_role=role,
+            current_player=view.player,
+            teammate_cards_left=teammate_cards_left,
+            left_enemy_cards_left=view.hand_counts[(view.player + 1) % 3],
+            right_enemy_cards_left=view.hand_counts[(view.player + 2) % 3],
+        )
+        recommendation = recommend_play(state)
+        if recommendation is None:
+            return None
+        return recommendation.pattern.cards
+
+
+class FirstLegalAgent:
+    def choose_play(self, view: TurnView) -> Optional[list[str]]:
+        # This agent is intentionally simple and is mainly useful for testing.
+        legal_plays = generate_legal_plays(view.hand, view.last_play.cards if view.last_play else None)
+        if not legal_plays:
+            return None
+        return legal_plays[0].cards

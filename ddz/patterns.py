@@ -39,6 +39,8 @@ class Pattern:
 
 
 def identify_pattern(cards: Iterable[str]) -> Optional[Pattern]:
+    # Every rule check below tries to answer one question:
+    # "If these cards are played together, what exact pattern do they form?"
     normalized = normalize_cards(cards)
     length = len(normalized)
     counts = card_counter(normalized)
@@ -98,6 +100,8 @@ def identify_pattern(cards: Iterable[str]) -> Optional[Pattern]:
 
 
 def find_patterns_from_hand(cards: Iterable[str]) -> list[Pattern]:
+    # MVP version: brute-force all subsets, then keep only the subsets
+    # that can be recognized as a legal pattern.
     hand = normalize_cards(cards)
     unique_patterns: dict[tuple[str, tuple[str, ...]], Pattern] = {}
     for size in range(1, len(hand) + 1):
@@ -129,6 +133,8 @@ def _is_consecutive(ranks: list[str]) -> bool:
 
 
 def _identify_plane_with_wings(counts: Counter[str], wing_size: int) -> Optional[str]:
+    # A plane is one or more consecutive triples plus "wings".
+    # wing_size == 1 means single-card wings; wing_size == 2 means pair wings.
     triple_ranks = sorted(
         [rank for rank, count in counts.items() if count >= 3 and rank in SEQUENCE_RANKS],
         key=lambda rank: RANK_VALUE[rank],
@@ -160,6 +166,8 @@ def _identify_plane_with_wings(counts: Counter[str], wing_size: int) -> Optional
 
 
 def _consecutive_runs(ranks: list[str]) -> list[list[str]]:
+    # We generate every consecutive run so later checks can try the longest
+    # sequence first, but still fall back to shorter valid planes if needed.
     runs: list[list[str]] = []
     current_run: list[str] = []
 

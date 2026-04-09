@@ -17,6 +17,9 @@ class Recommendation:
 
 
 def recommend_play(state: GameState) -> Optional[Recommendation]:
+    # Strategy works in two steps:
+    # 1. generate every legal move for the current position
+    # 2. score them and keep the highest-scoring one
     legal_plays = generate_legal_plays(state.my_hand, state.last_play.cards if state.last_play else None)
     if not legal_plays:
         return None
@@ -38,9 +41,11 @@ def _score_play(state: GameState, pattern: Pattern) -> Recommendation:
     score = 0.0
     reasons: list[str] = []
 
+    # Larger plays usually reduce the number of future turns we need.
     score += pattern.length * 6
     reasons.append(f"Play {pattern.length} cards at once to reduce future turns.")
 
+    # Different pattern types have different strategic values.
     kind_bonus_map = {
         "single": 4,
         "pair": 7,
@@ -68,6 +73,7 @@ def _score_play(state: GameState, pattern: Pattern) -> Recommendation:
 
     remaining_hand = _remaining_hand(state.my_hand, pattern.cards)
     remaining_groups = len(card_counter(remaining_hand))
+    # Fewer disconnected rank groups usually means the hand is easier to finish.
     score -= remaining_groups * 1.5
 
     high_card_penalty = sum(2 for card in pattern.cards if RANK_VALUE[card] >= RANK_VALUE["A"])
@@ -94,6 +100,7 @@ def _score_play(state: GameState, pattern: Pattern) -> Recommendation:
 
 
 def _remaining_hand(hand: list[str], played_cards: list[str]) -> list[str]:
+    # Remove one matching card at a time so duplicate ranks are handled correctly.
     remaining = list(hand)
     for card in played_cards:
         remaining.remove(card)
