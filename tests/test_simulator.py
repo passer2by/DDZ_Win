@@ -14,6 +14,7 @@ def test_simulate_game_finishes_with_empty_winner_hand() -> None:
     assert result.winner in {0, 1, 2}
     assert result.final_hands[result.winner] == []
     assert len(result.turns) > 0
+    assert len(result.play_history) == len(result.turns)
 
 
 def test_simulate_many_games_returns_summary() -> None:

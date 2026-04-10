@@ -32,3 +32,14 @@ def test_env_terminal_reward_matches_farmer_win() -> None:
     assert result.done
     assert result.observation.winner == 1
     assert result.reward == [-1.0, 1.0, 1.0]
+
+
+def test_env_observation_tracks_play_history() -> None:
+    env = DoudizhuEnv()
+    env.reset(seed=1, landlord=0)
+    first_action = env.legal_actions()[0]
+    result = env.step(first_action)
+
+    assert len(result.observation.play_history) == 1
+    assert result.observation.play_history[0].player == 0
+    assert result.observation.play_history[0].is_pass is False
