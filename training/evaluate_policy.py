@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 from dataclasses import dataclass
 
 from ddz.agent import HeuristicAgent
@@ -12,7 +13,7 @@ class EvaluationConfig:
     """Configuration for a quick model-vs-heuristic benchmark."""
 
     checkpoint_path: str = "training/checkpoints/policy_mlp_best.pt"
-    num_games: int = 30
+    num_games: int = 10
     seed: int = 42
 
 
@@ -52,7 +53,23 @@ def evaluate_policy(config: EvaluationConfig) -> None:
 
 
 def main() -> None:
-    evaluate_policy(EvaluationConfig())
+    parser = argparse.ArgumentParser(description="Evaluate a trained policy against heuristic agents.")
+    parser.add_argument(
+        "--checkpoint-path",
+        default="training/checkpoints/policy_mlp_best.pt",
+        help="Checkpoint to load for evaluation.",
+    )
+    parser.add_argument("--num-games", type=int, default=10, help="Number of evaluation games to run.")
+    parser.add_argument("--seed", type=int, default=42, help="Base random seed for evaluation games.")
+    args = parser.parse_args()
+
+    evaluate_policy(
+        EvaluationConfig(
+            checkpoint_path=args.checkpoint_path,
+            num_games=args.num_games,
+            seed=args.seed,
+        )
+    )
 
 
 if __name__ == "__main__":

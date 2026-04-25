@@ -41,3 +41,6 @@ pytest -q tests -p no:cacheprovider
 - `python -m training.export_data` generates self-play samples in `training/data/`
 - `python -m training.train_policy` now reports both training and validation metrics and saves a best checkpoint
 - `python -m training.evaluate_policy` loads the best saved checkpoint and rotates the model across all three seats
+- Suggested next experiment: `python -m training.export_data --num-games 200`
+- Suggested next experiment: `python -m training.train_policy --epochs 5`
+- Suggested next experiment: `python -m training.evaluate_policy --num-games 10`

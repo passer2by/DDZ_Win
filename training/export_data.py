@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
@@ -118,10 +119,21 @@ def _play_one_game_for_export(
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Export heuristic self-play data for policy training.")
+    parser.add_argument("--num-games", type=int, default=200, help="Number of self-play games to export.")
+    parser.add_argument(
+        "--output-path",
+        type=Path,
+        default=Path("training") / "data" / "heuristic_self_play.jsonl",
+        help="Path to the output JSONL file.",
+    )
+    parser.add_argument("--seed", type=int, default=42, help="Base random seed for reproducible exports.")
+    args = parser.parse_args()
+
     summary = export_self_play_data(
-        num_games=20,
-        output_path=Path("training") / "data" / "heuristic_self_play.jsonl",
-        seed=42,
+        num_games=args.num_games,
+        output_path=args.output_path,
+        seed=args.seed,
     )
     print("games:", summary.games)
     print("samples:", summary.samples)

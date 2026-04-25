@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 from dataclasses import dataclass
 from pathlib import Path
 import random
@@ -26,7 +27,7 @@ class TrainConfig:
     data_path: str = "training/data/heuristic_self_play.jsonl"
     model_path: str = "training/checkpoints/policy_mlp.pt"
     best_model_path: str = "training/checkpoints/policy_mlp_best.pt"
-    epochs: int = 3
+    epochs: int = 5
     learning_rate: float = 1e-3
     hidden_dim: int = 256
     validation_fraction: float = 0.2
@@ -205,7 +206,46 @@ def _save_checkpoint(
 
 
 def main() -> None:
-    train_policy(TrainConfig())
+    parser = argparse.ArgumentParser(description="Train a policy model from exported self-play data.")
+    parser.add_argument(
+        "--data-path",
+        default="training/data/heuristic_self_play.jsonl",
+        help="Path to the exported JSONL dataset.",
+    )
+    parser.add_argument(
+        "--model-path",
+        default="training/checkpoints/policy_mlp.pt",
+        help="Where to save the final checkpoint.",
+    )
+    parser.add_argument(
+        "--best-model-path",
+        default="training/checkpoints/policy_mlp_best.pt",
+        help="Where to save the best validation checkpoint.",
+    )
+    parser.add_argument("--epochs", type=int, default=5, help="Number of training epochs.")
+    parser.add_argument("--learning-rate", type=float, default=1e-3, help="AdamW learning rate.")
+    parser.add_argument("--hidden-dim", type=int, default=256, help="Hidden dimension for the MLP.")
+    parser.add_argument(
+        "--validation-fraction",
+        type=float,
+        default=0.2,
+        help="Fraction of samples reserved for validation.",
+    )
+    parser.add_argument("--shuffle-seed", type=int, default=42, help="Shuffle seed for train/validation split.")
+    args = parser.parse_args()
+
+    train_policy(
+        TrainConfig(
+            data_path=args.data_path,
+            model_path=args.model_path,
+            best_model_path=args.best_model_path,
+            epochs=args.epochs,
+            learning_rate=args.learning_rate,
+            hidden_dim=args.hidden_dim,
+            validation_fraction=args.validation_fraction,
+            shuffle_seed=args.shuffle_seed,
+        )
+    )
 
 
 if __name__ == "__main__":
