@@ -2,7 +2,6 @@
 
 from collections import Counter
 from dataclasses import dataclass
-from itertools import combinations
 from typing import Iterable, Optional
 
 from ddz.cards import RANK_VALUE, SEQUENCE_RANKS, card_counter, normalize_cards
@@ -114,22 +113,83 @@ def identify_pattern(cards: Iterable[str]) -> Optional[Pattern]:
 
 def find_patterns_from_hand(cards: Iterable[str]) -> list[Pattern]:
     """Enumerate every legal pattern that can be formed from one hand."""
-    # MVP version: brute-force all subsets, then keep only the subsets
-    # that can be recognized as a legal pattern.
-    #
-    # 这段逻辑的好处是简单、正确性直观；
-    # 代价是性能一般，因为 17~20 张牌时会枚举很多子集。
-    # 以后如果要大规模模拟/训练，这里通常会是第一批优化对象。
     hand = normalize_cards(cards)
+    counts = card_counter(hand)
+    sorted_ranks = sorted(counts, key=lambda rank: RANK_VALUE[rank])
     unique_patterns: dict[tuple[str, tuple[str, ...]], Pattern] = {}
-    for size in range(1, len(hand) + 1):
-        for combo in combinations(range(len(hand)), size):
-            subset = [hand[index] for index in combo]
-            pattern = identify_pattern(subset)
-            if pattern is None:
-                continue
-            key = (pattern.kind, tuple(pattern.cards))
-            unique_patterns[key] = pattern
+
+    def add_pattern(kind: str, main_rank: str, pattern_cards: list[str]) -> None:
+        normalized = normalize_cards(pattern_cards)
+        pattern = Pattern(kind, main_rank, normalized, len(normalized))
+        unique_patterns[(pattern.kind, tuple(pattern.cards))] = pattern
+
+    for rank in sorted_ranks:
+        add_pattern("single", rank, [rank])
+        if counts[rank] >= 2:
+            add_pattern("pair", rank, [rank, rank])
+        if counts[rank] >= 3:
+            add_pattern("triple", rank, [rank, rank, rank])
+        if counts[rank] == 4:
+            add_pattern("bomb", rank, [rank, rank, rank, rank])
+
+    if counts.get("BJ", 0) and counts.get("RJ", 0):
+        add_pattern("rocket", "RJ", ["BJ", "RJ"])
+
+    triple_ranks = [rank for rank in sorted_ranks if counts[rank] >= 3]
+    pair_ranks = [rank for rank in sorted_ranks if counts[rank] >= 2]
+    bomb_ranks = [rank for rank in sorted_ranks if counts[rank] == 4]
+
+    for triple_rank in triple_ranks:
+        for single_rank in sorted_ranks:
+            if single_rank != triple_rank:
+                add_pattern("triple_single", triple_rank, [triple_rank, triple_rank, triple_rank, single_rank])
+        for pair_rank in pair_ranks:
+            if pair_rank != triple_rank:
+                add_pattern("triple_pair", triple_rank, [triple_rank, triple_rank, triple_rank, pair_rank, pair_rank])
+
+    for bomb_rank in bomb_ranks:
+        remainder = counts.copy()
+        remainder[bomb_rank] -= 4
+        if remainder[bomb_rank] == 0:
+            del remainder[bomb_rank]
+
+        for singles in _select_card_multisets(remainder, 2):
+            add_pattern("four_two_single", bomb_rank, [bomb_rank, bomb_rank, bomb_rank, bomb_rank, *singles])
+
+        pair_choices = [rank for rank, count in remainder.items() if count >= 2]
+        for pair_ranks_choice in _select_rank_combinations(pair_choices, 2):
+            wing_cards = [rank for rank in pair_ranks_choice for _ in range(2)]
+            add_pattern("four_two_pair", bomb_rank, [bomb_rank, bomb_rank, bomb_rank, bomb_rank, *wing_cards])
+
+    straight_ranks = [rank for rank in SEQUENCE_RANKS if counts.get(rank, 0) >= 1]
+    for run in _consecutive_runs(straight_ranks):
+        if len(run) >= 5:
+            add_pattern("straight", run[-1], list(run))
+
+    pair_straight_ranks = [rank for rank in SEQUENCE_RANKS if counts.get(rank, 0) >= 2]
+    for run in _consecutive_runs(pair_straight_ranks):
+        if len(run) >= 3:
+            add_pattern("pair_straight", run[-1], [rank for rank in run for _ in range(2)])
+
+    plane_ranks = [rank for rank in SEQUENCE_RANKS if counts.get(rank, 0) >= 3]
+    for run in _consecutive_runs(plane_ranks):
+        plane_cards = [rank for rank in run for _ in range(3)]
+        add_pattern("plane", run[-1], plane_cards)
+
+        remainder = counts.copy()
+        for rank in run:
+            remainder[rank] -= 3
+            if remainder[rank] == 0:
+                del remainder[rank]
+
+        for singles in _select_card_multisets(remainder, len(run)):
+            add_pattern("plane_single", run[-1], plane_cards + list(singles))
+
+        pair_choices = [rank for rank, count in remainder.items() if count >= 2]
+        for pair_ranks_choice in _select_rank_combinations(pair_choices, len(run)):
+            wing_cards = [rank for rank in pair_ranks_choice for _ in range(2)]
+            add_pattern("plane_pair", run[-1], plane_cards + wing_cards)
+
     return sorted(
         unique_patterns.values(),
         key=lambda pattern: (
@@ -221,3 +281,50 @@ def _all_subruns(run: list[str]) -> list[list[str]]:
         for end in range(start + 2, len(run) + 1):
             subruns.append(run[start:end])
     return subruns
+
+
+def _select_card_multisets(counts: Counter[str], total_cards: int) -> list[tuple[str, ...]]:
+    """Choose every multiset of cards of a fixed size from a rank counter."""
+    if total_cards == 0:
+        return [()]
+
+    ranks = sorted((rank for rank, count in counts.items() if count > 0), key=lambda rank: RANK_VALUE[rank])
+    results: list[tuple[str, ...]] = []
+
+    def backtrack(index: int, remaining: int, current: list[str]) -> None:
+        if remaining == 0:
+            results.append(tuple(current))
+            return
+        if index >= len(ranks):
+            return
+
+        rank = ranks[index]
+        max_take = min(counts[rank], remaining)
+        for take in range(max_take + 1):
+            if take:
+                current.extend([rank] * take)
+            backtrack(index + 1, remaining - take, current)
+            if take:
+                del current[-take:]
+
+    backtrack(0, total_cards, [])
+    return results
+
+
+def _select_rank_combinations(ranks: list[str], size: int) -> list[tuple[str, ...]]:
+    """Choose distinct ranks without repetition."""
+    if size == 0:
+        return [()]
+    results: list[tuple[str, ...]] = []
+
+    def backtrack(start: int, current: list[str]) -> None:
+        if len(current) == size:
+            results.append(tuple(current))
+            return
+        for index in range(start, len(ranks)):
+            current.append(ranks[index])
+            backtrack(index + 1, current)
+            current.pop()
+
+    backtrack(0, [])
+    return results
