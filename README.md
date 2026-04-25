@@ -32,5 +32,12 @@ python main.py
 python play_against_ai.py
 python -m training.export_data
 python -m training.train_policy
+python -m training.evaluate_policy
 pytest -q tests -p no:cacheprovider
 ```
+
+## Training notes
+
+- `python -m training.export_data` generates self-play samples in `training/data/`
+- `python -m training.train_policy` now reports both training and validation metrics and saves a best checkpoint
+- `python -m training.evaluate_policy` loads the best saved checkpoint and rotates the model across all three seats

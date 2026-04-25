@@ -196,7 +196,7 @@ def _normalize_counts(hand_counts: list[int]) -> list[float]:
 def _encode_history_summary(sample: TrainingSample) -> list[float]:
     seen_counts = _count_cards([card for record in sample.play_history for card in record["cards"]])
     passes = sum(1 for record in sample.play_history if record["is_pass"])
-    return seen_counts + [passes / 100.0, len(sample.play_history) / 100.0, 1.0 if sample.did_win else 0.0]
+    return seen_counts + [passes / 100.0, len(sample.play_history) / 100.0]
 
 
 def _one_hot(index: int, size: int) -> list[float]:
