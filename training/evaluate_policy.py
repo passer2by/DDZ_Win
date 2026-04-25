@@ -30,13 +30,19 @@ def evaluate_policy(config: EvaluationConfig) -> None:
         agents = [HeuristicAgent(), HeuristicAgent(), HeuristicAgent()]
         agents[model_seat] = model_agent
         result = simulate_game(agents=agents, seed=config.seed + index, landlord=landlord)
-        if result.winner == model_seat:
+        did_win = result.winner == model_seat
+        if did_win:
             total_wins += 1
             seat_wins[model_seat] += 1
             if model_seat == result.landlord:
                 landlord_wins += 1
             else:
                 farmer_wins += 1
+        print(
+            f"[eval] game={index + 1}/{config.num_games} model_seat=P{model_seat} "
+            f"landlord=P{landlord} winner=P{result.winner} did_win={did_win} "
+            f"running_win_rate={total_wins / (index + 1):.4f}"
+        )
 
     print(
         f"[eval] games={config.num_games} model_wins={total_wins} "
