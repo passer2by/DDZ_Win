@@ -29,5 +29,8 @@ Current version: `0.2.0`
 
 ```bash
 python main.py
+python play_against_ai.py
+python -m training.export_data
+python -m training.train_policy
 pytest -q tests -p no:cacheprovider
 ```
